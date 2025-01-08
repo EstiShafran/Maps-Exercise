@@ -9,6 +9,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './MapComponent.css'
 
+// הגדרת סמן ברירת מחדל
 const defaultIcon = L.icon({
     iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
     iconSize: [25, 41],
@@ -18,85 +19,86 @@ const defaultIcon = L.icon({
     shadowSize: [41, 41]
 })
 
+// קומפוננטה שאחראית לעדכן את המפה כאשר המיקום משתנה
 const MapUpdater = ({ selectedLocation }) => {
-    const map = useMap(); // שימוש ב- useMap בתוך קומפוננטה שהיא בתנאי ההיררכיה של MapContainer
+    const map = useMap();
     useEffect(() => {
-        if (selectedLocation.lat == 31.7788242 && selectedLocation.lon == 35.2257626 && selectedLocation.display_name == "ירושלים") {
-            map.locate()
-            // console.log(map);
-        }
         if (map) {
-            map.setView([selectedLocation.lat, selectedLocation.lon], map.getZoom()); // עדכון המפה
+            // map.setView([selectedLocation.lat, selectedLocation.lon], map.getZoom()); 
+            map.flyTo([selectedLocation.lat, selectedLocation.lon])
         }
     }, [selectedLocation, map]); // עדכון כש- selectedLocation משתנה
     return null; // לא מציגה שום תוכן, רק מעדכנת את המפה
 };
 
-
+// קומפוננטה הראשית שמציגה את המפה ואת טופס החיפוש
 const MapComponent = () => {
-    let [results, setResults] = useState([])
-    const [inputValue, setInputValue] = useState('')
-    const [selectedLocation, setSelectedLocation] = useState({
+    let [results, setResults] = useState([]) // משתנה בסטייט לאחסון התוצאות של חיפוש המיקומים
+    const [inputValue, setInputValue] = useState('') // משנה בסטייט לשמירת ערך שדה החיפוש
+    const [selectedLocation, setSelectedLocation] = useState({ // מצב לאחסון המיקום שנבחר (הברירת מחדל: ירושלים)
         display_name: "ירושלים",
         lat: 31.7788242,
         lon: 35.2257626
     })
-    const position = [selectedLocation.lat, selectedLocation.lon]
+    const position = [selectedLocation.lat, selectedLocation.lon] // נקודות המיקום על המפה מתעדכן בכל שלב לפי המיקום שנבחר
 
-    useEffect(()=>{
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (myLocation)=>{
-                const { latitude, longitude } = myLocation.coords;
-               setSelectedLocation({
-                display_name:"אתה כאן",
-                lat:latitude,
-                lon:longitude
-               })
-            },
-            (error) => {
-                console.error('Error getting location:', error);
-              }
-        )
+    // פונקציה כדי לאתר את מיקום המשתמש
+    useEffect(() => {
+        if (navigator.geolocation) { // בודק אם הגישה למיקום זמינה
+            navigator.geolocation.getCurrentPosition(  // מקבל את המיקום הנוכחי
+                (myLocation) => {
+                    const { latitude, longitude } = myLocation.coords;
+                    setSelectedLocation({ // עדכון המיקום שנבחר למיקום של המשתמש
+                        display_name: "אתה כאן",
+                        lat: latitude,
+                        lon: longitude
+                    })
+                },
+                (error) => {
+                    console.error('Error getting location:', error); // טיפול בשגיאות במידה ולא ניתן לאתר את המיקום
+                }
+            )
         }
-        
-    },[])
 
+    }, [])// מתבצע פעם אחת כאשר הקומפוננטה נטענת
+
+    // פונקציה לחיפוש מיקומים ב-OpenStreetMap
     const search = async () => {
-        let value = inputValue
+        let value = inputValue // לוקחים את ערך הקלט
         if (!value) {
-            setResults([]);
+            setResults([]);  // אם אין ערך בקלט, מנקים את התוצאות
             return
         }
         try {
+            // שולחים בקשה ל-API של OpenStreetMap
             let response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${value}`)
             response = await response.json()
-            setResults([]);
-            setResults(response.map(obj => ({
+            setResults([]); // מנקים את התוצאות הישנות
+            setResults(response.map(obj => ({ // מעדכנים את התוצאות בנתונים החדשים
                 display_name: obj.display_name,
-                lat: obj.lat,  // קבלת קואורדינטות ה- Latitude
-                lon: obj.lon   // קבלת קואורדינטות ה- Longitude
+                lat: obj.lat,
+                lon: obj.lon
             })))
         } catch (err) {
-            console.error(err)
+            console.error(err) //טיפול בשגיאות
         }
-        // console.log(results);
+
     }
 
     useEffect(() => {
-        search()
+        search()  // מחפשים מיקומים כל פעם שערך הקלט בשדה החיפוש משתנה
     }, [inputValue])
 
+    // פונקציה לטיפול בבחירת מיקום מתוך תוצאות החיפוש
     const handleLocationSelect = () => {
         console.log("המקום מתעדכן");
-        // עדכון המיקום שנבחר
-        const selectedValue = inputValue;
+        const selectedValue = inputValue; // לוקחים את המיקום שנבחר מהקלט
         console.log("selectedValue", selectedValue);
         console.log("selectedLocation", selectedLocation);
-        const location = results.find(result => result.display_name === selectedValue);
+        const location = results.find(result => result.display_name === selectedValue); // מחפשים את המיקום מתוך התוצאות
         if (location) {
             console.log("location:", location)
-            setSelectedLocation({
+            setSelectedLocation({ // במידה ונמצא מעדכנים את המיקום שנבחר
                 display_name: location.display_name,
                 lat: parseFloat(location.lat),
                 lon: parseFloat(location.lon)
@@ -114,12 +116,12 @@ const MapComponent = () => {
                         list="optionList"
                         id='place'
                         placeholder='כתובת לחיפוש'
-                        onChange={(e) => { setInputValue(e.target.value) }}
-                        onBlur={handleLocationSelect}
+                        onChange={(e) => { setInputValue(e.target.value) }} // בכל שינוי מעדכנים את משתנה ערך הקלט
+                        onBlur={handleLocationSelect} // בעת יציאה מהשדה חיפוש, בודקים איזה מיקום נבחר
                     >
                     </input><br />
                     <datalist id="optionList">
-                        {results.map((option, index) => (
+                        {results.map((option, index) => (  // מציגים את תוצאות החיפוש בתוך רשימת אפשרויות
                             <option
                                 key={index}
                                 value={option.display_name}
@@ -145,10 +147,9 @@ const MapComponent = () => {
                         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
                     <Marker position={position} icon={defaultIcon}>
-                        <Popup>{selectedLocation.display_name}</Popup>
+                        <Popup>{selectedLocation.display_name}</Popup>  {/* מציג את שם המקום  */}
                     </Marker>
-                    {/* <LocationMarker></LocationMarker> */}
-                    <MapUpdater selectedLocation={selectedLocation}></MapUpdater>
+                    <MapUpdater selectedLocation={selectedLocation}></MapUpdater> {/* עדכון המפה */}
                 </MapContainer>
             </div>
         </div>
