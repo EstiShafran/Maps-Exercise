@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
-import MapComp from './MapComp';
-import { MapContainer, TileLayer, Popup, useMap, useMapEvents } from 'react-leaflet';
+import RoomIcon from '@mui/icons-material/Room';
+// import MapComp from './MapComp';
+import { MapContainer, TileLayer, Popup, useMap, useMapEvents, CircleMarker } from 'react-leaflet';
 import { Marker } from 'react-leaflet/Marker'
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import './InputForm.css'
+import './MapComponent.css'
 
 const defaultIcon = L.icon({
-    iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png', // ניתן להחליף בתמונה שלך
+    iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
     iconSize: [25, 41],
     iconAnchor: [12, 41],
     popupAnchor: [1, -34],
@@ -17,70 +18,51 @@ const defaultIcon = L.icon({
     shadowSize: [41, 41]
 })
 
-function LocationMarker() {
-    const [position, setPosition] = useState(null)
-    const map = useMapEvents({
-        click() {
-            map.locate()
-        },
-        locationfound(e) {
-            // console.log(e);
-            setPosition(e.latlng)
-            map.flyTo(e.latlng, map.getZoom())
-        },
-    })
-    return position === null ? null : (
-        <Marker
-            position={position}
-            icon={defaultIcon}
-        >
-            <Popup>You are here</Popup>
-        </Marker>
-    )
-    // return null
-}
-
 const MapUpdater = ({ selectedLocation }) => {
     const map = useMap(); // שימוש ב- useMap בתוך קומפוננטה שהיא בתנאי ההיררכיה של MapContainer
-
     useEffect(() => {
-        // if (selectedLocation.lat == 51.505 && selectedLocation.lon == -0.09 && selectedLocation.display_name == "ירושלים") {
-        //     map.locate()
-        //     console.log("map.locate()",map.locate());
-
-        // }
         if (selectedLocation.lat == 31.7788242 && selectedLocation.lon == 35.2257626 && selectedLocation.display_name == "ירושלים") {
             map.locate()
             // console.log(map);
-
         }
         if (map) {
             map.setView([selectedLocation.lat, selectedLocation.lon], map.getZoom()); // עדכון המפה
         }
     }, [selectedLocation, map]); // עדכון כש- selectedLocation משתנה
-
     return null; // לא מציגה שום תוכן, רק מעדכנת את המפה
 };
 
 
-const InputForm = () => {
-
+const MapComponent = () => {
     let [results, setResults] = useState([])
     const [inputValue, setInputValue] = useState('')
     const [selectedLocation, setSelectedLocation] = useState({
-
         display_name: "ירושלים",
-        // lat: 51.505, 
-        // lon: -0.09
         lat: 31.7788242,
         lon: 35.2257626
     })
     const position = [selectedLocation.lat, selectedLocation.lon]
-    // const [selectedLocation, setSelectedLocation] = useState(null)
 
+    useEffect(()=>{
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (myLocation)=>{
+                const { latitude, longitude } = myLocation.coords;
+               setSelectedLocation({
+                display_name:"אתה כאן",
+                lat:latitude,
+                lon:longitude
+               })
+            },
+            (error) => {
+                console.error('Error getting location:', error);
+              }
+        )
+        }
+        
+    },[])
 
     const search = async () => {
-        // alert("search")
         let value = inputValue
         if (!value) {
             setResults([]);
@@ -120,15 +102,9 @@ const InputForm = () => {
                 lon: parseFloat(location.lon)
             });
         }
-        // console.log(selectedLocation);
     }
-    const handleSubmit = () => {
-    }
-
-
-
     return (
-        <div id='InputFormBody'>
+        <div id='MapComponentBody'>
             <div id='form-div'>
                 <form>
                     <input type='text' placeholder='שם משתמש'></input><br />
@@ -159,30 +135,26 @@ const InputForm = () => {
                         <FormControlLabel control={<Checkbox />} label="מטבח" /><br />
                         <FormControlLabel control={<Checkbox />} label="מכונת קפה" /><br />
                     </div>
-
-                    <input type='button' onClick={handleSubmit} value="חיפוש" id='submit' />
+                    <input type='button' value="חיפוש" id='submit' />
                 </form>
             </div>
-            {/* <MapComp selectedLocation={selectedLocation}></MapComp> */}
             <div id="map" style={{ height: "100vh", width: "98%" }}>
-                <MapContainer center={[selectedLocation.lat, selectedLocation.lon]} zoom={13} style={{ height: "100%", width: "100%" }} scrollWheelZoom={true}>
+                <MapContainer center={position} zoom={13} style={{ height: "100%", width: "100%" }} scrollWheelZoom={true}>
                     <TileLayer
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
-                    <Marker position={[selectedLocation.lat, selectedLocation.lon]}>
-                        <Popup>
-                            {selectedLocation.display_name}
-                        </Popup>
+                    <Marker position={position} icon={defaultIcon}>
+                        <Popup>{selectedLocation.display_name}</Popup>
                     </Marker>
-                    <LocationMarker></LocationMarker>
+                    {/* <LocationMarker></LocationMarker> */}
                     <MapUpdater selectedLocation={selectedLocation}></MapUpdater>
                 </MapContainer>
-                <h1>{selectedLocation.lat}</h1>
             </div>
         </div>
     );
 }
 
-export default InputForm;
+export default MapComponent;
+
 
